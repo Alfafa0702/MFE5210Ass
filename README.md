@@ -1,5 +1,17 @@
-<<<<<<< HEAD
 # Factor Mining for A Share （I）
+
+MFE5210 Algorithm Trading 24/25
+
+This will include:  
+a. Code for generating alpha factors
+b. Reference
+c. Readme
+
+- i. Correlation matrix (maximal correlation is 0.5)
+
+- ii. Average sharp ratio for all alpha factors (without cost)
+
+- iii. others  
 
 ## Data
 
@@ -57,16 +69,3 @@ init_depth: 公式树的初始化深度max和min （无法像决策树那样网�
 
 方程定义合集
 扩充gplearn的自定义函数集(function_set)【表2】
-=======
-# MFE5210
-MFE5210 Algorithm Trading 24/25
-
-This will include:  
-a. Code for generating alpha factors   
-b. Reference   
-c. Readme   
-i. Correlation matrix (maximal correlation is 0.5)   
-ii. Average sharp ratio for all alpha factors (without 
-cost)   
-iii. others  
->>>>>>> 96adced54b1af160f4f380bc5f4842d8a1036a98
