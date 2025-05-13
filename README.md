@@ -24,6 +24,13 @@ Token(5000 points):
 ```
 
 ## Reference
+[Alphalens](https://github.com/quantopian/alphalens.git) [指南](https://zhuanlan.zhihu.com/p/256324663)
+
+[量价背离因子](https://bigquant.com/wiki/doc/Hn333yYkfS)
+
+[全换手天数因子](https://www.joinquant.com/view/community/detail/71d8b77cbd1da76b659e04d2c7478c0c?type=1)
+
+[下轨线（布林线）指标 boll_down](https://www.joinquant.com/view/factorlib/detail/94aec050cf469a9803395b8994f5e5ac?buildtype=0&universetype=eno1MDA%3D&period=M3k%3D&commisionFee=MA%3D%3D&skipPaused=MQ%3D%3D)
 
 [Genetic Programming in factor mining](https://bigquant.com/wiki/pdfjs/web/viewer.html?file=/wiki/static/upload/52/529a958c-f60c-4ccd-a491-238c02e013d6.pdf)
 
