@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from scipy import stats
+from joblib import Parallel, delayed
 
 class FactorProcessor:
     """
@@ -34,7 +36,8 @@ class FactorProcessor:
         返回:
             处理后的FactorProcessor对象，支持链式调用
         """
-        for date in self.processed_factor.index:
+        print('winsorize begins...')
+        for date in tqdm(self.processed_factor.index):
             factor_series = self.processed_factor.loc[date].dropna()
             
             if method == 'sigma':
@@ -55,7 +58,7 @@ class FactorProcessor:
             
             # 替换极端值
             self.processed_factor.loc[date] = factor_series.clip(lower, upper)
-        
+        print('winsorize finished!')
         return self
     
     def standardize(self, method: str = 'zscore', 
@@ -73,7 +76,8 @@ class FactorProcessor:
         if industry_neutral and self.industry is None:
             raise ValueError("行业中性化需要提供行业数据")
         
-        for date in self.processed_factor.index:
+        print('standardize begins...')
+        for date in tqdm(self.processed_factor.index):
             factor_series = self.processed_factor.loc[date].dropna()
             
             if industry_neutral:
@@ -102,11 +106,70 @@ class FactorProcessor:
                     raise ValueError(f"不支持的标准化方法: {method}")
                 
                 self.processed_factor.loc[date, factor_series.index] = standardized
-        
+        print('standardize finished!')
         return self
     
+    # def neutralize(self, market_value_neutral: bool = True, 
+    #               industry_neutral: bool = True) -> 'FactorProcessor':
+    #     """
+    #     中性化处理（市值中性化和行业中性化）
+        
+    #     参数:
+    #         market_value_neutral: 是否进行市值中性化
+    #         industry_neutral: 是否进行行业中性化
+        
+    #     返回:
+    #         处理后的FactorProcessor对象，支持链式调用
+    #     """
+    #     if (market_value_neutral and self.market_value is None) or \
+    #        (industry_neutral and self.industry is None):
+    #         raise ValueError("市值中性化需要市值数据，行业中性化需要行业数据")
+        
+    #     print('neutralize begins...')
+    #     for date in tqdm(self.processed_factor.index):
+    #         factor_series = self.processed_factor.loc[date].dropna()
+    #         stocks = factor_series.index
+            
+    #         # 准备自变量
+    #         X = pd.DataFrame(index=stocks)
+            
+    #         if market_value_neutral:
+    #             try:
+    #                 mv_series = self.market_value.loc[date, stocks]
+    #                 X['market_value'] = np.log(mv_series)  # 使用市值对数
+    #             except KeyError:
+    #                 self.processed_factor.loc[date, stocks] = residuals # 市值缺失则沿用上一期的
+    #                 continue
+            
+    #         if industry_neutral:
+    #             industry_series = self.industry[stocks]
+
+    #             industry_dummies = pd.get_dummies(industry_series, prefix='industry')
+    #             X = pd.concat([X, industry_dummies], axis=1)
+            
+    #         # 处理缺失值
+    #         X = X.fillna(0)
+            
+    #         # 确保有足够的样本进行回归
+    #         if len(X) > X.shape[1] + 1:
+    #             # 添加常数项
+    #             X['intercept'] = 1
+                
+    #             # 多元线性回归
+    #             try:
+    #                 X = X.to_array()
+    #                 y = factor_series.to_array()
+    #                 beta = np.linalg.inv(X.T @ X) @ X.T @ y
+    #                 residuals = y - X @ beta
+    #                 self.processed_factor.loc[date, stocks] = residuals
+    #             except:
+    #                 # 如果无法进行回归，保留原始值
+    #                 pass
+    #     print('neutralize finished!')
+    #     return self
+    
     def neutralize(self, market_value_neutral: bool = True, 
-                  industry_neutral: bool = True) -> 'FactorProcessor':
+                   industry_neutral: bool = True) -> 'FactorProcessor':
         """
         中性化处理（市值中性化和行业中性化）
         
@@ -121,7 +184,10 @@ class FactorProcessor:
            (industry_neutral and self.industry is None):
             raise ValueError("市值中性化需要市值数据，行业中性化需要行业数据")
         
-        for date in self.processed_factor.index:
+        print('neutralize begins...')
+
+        # 定义单个日期的中性化处理函数
+        def neutralize_date(date):
             factor_series = self.processed_factor.loc[date].dropna()
             stocks = factor_series.index
             
@@ -129,11 +195,14 @@ class FactorProcessor:
             X = pd.DataFrame(index=stocks)
             
             if market_value_neutral:
-                mv_series = self.market_value.loc[date, stocks]
-                X['market_value'] = np.log(mv_series)  # 使用市值对数
+                try:
+                    mv_series = self.market_value.loc[date, stocks]
+                    X['market_value'] = np.log(mv_series)  # 使用市值对数
+                except KeyError:
+                    return date, factor_series  # 市值缺失则保留原始值
             
             if industry_neutral:
-                industry_series = self[stocks]
+                industry_series = self.industry[stocks]
                 industry_dummies = pd.get_dummies(industry_series, prefix='industry')
                 X = pd.concat([X, industry_dummies], axis=1)
             
@@ -147,16 +216,27 @@ class FactorProcessor:
                 
                 # 多元线性回归
                 try:
-                    from statsmodels.api import OLS
-                    model = OLS(factor_series, X).fit()
-                    residuals = model.resid
-                    self.processed_factor.loc[date, stocks] = residuals
+                    X = X.to_numpy()
+                    y = factor_series.to_numpy()
+                    beta = np.linalg.inv(X.T @ X) @ X.T @ y
+                    residuals = y - X @ beta
+                    return date, pd.Series(residuals, index=stocks)
                 except:
                     # 如果无法进行回归，保留原始值
-                    pass
-        
+                    return date, factor_series
+            else:
+                return date, factor_series
+
+        # 使用 joblib 并行处理每个日期，并显示进度条
+        results = Parallel(n_jobs=-1)(delayed(neutralize_date)(date) for date in tqdm(self.processed_factor.index, desc="Processing dates"))
+
+        # 更新 processed_factor
+        for date, residuals in results:
+            self.processed_factor.loc[date] = residuals
+
+        print('neutralize finished!')
         return self
-    
+
     def get_processed_factor(self) -> pd.DataFrame:
         """获取处理后的因子数据"""
         return self.processed_factor
@@ -182,10 +262,12 @@ def process(factor_data,market_value,industry):
         processor
         .winsorize(method='mad', threshold=3.0)  # MAD去极值
         .standardize(method='zscore')            # Z-score标准化
-        .neutralize(market_value_neutral=True, industry_neutral=True)  # 市值和行业中性化
+        .neutralize(market_value_neutral=True, industry_neutral=False)  # 市值和行业中性化
         .get_processed_factor()
     )
-        
+
+    # processed_factor = processed_factor.set_index((['trade_date', 'ts_code']))
+    
     print("因子处理完成")
     print(f"处理后因子数据形状: {processed_factor.shape}")
     return processed_factor
