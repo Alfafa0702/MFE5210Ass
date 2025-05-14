@@ -24,6 +24,49 @@ Token(5000 points):
 ```
 see [get_date.ipynb](get_data.ipynb)
 
+## Factor construction
+see [cal_factor.ipynb](cal_factor.ipynb)
+
+- mmt_intraday_M
+   - 名称：1个月日内动量
+   - 计算方式：过去一个月的日内涨跌幅之和
+   - 逻辑：收益率中日内涨跌幅可能蕴含与日度收益率不同的信息特征，业界认为A股中日内收益率包含日度收益率中的“反转”成份。
+- mmt_normal_M
+   - 名称：1个月收益率
+   - 计算方式：过去1个月收益率
+   - 逻辑：最近一个月的收益率更多体现了散户投资者对于近期信息的过度反映。
+- mmt_overnight_M
+   - 名称：1个月隔夜动量
+   - 计算方式：过去一个月的隔夜涨跌幅之和
+   - 逻辑：收益率中隔夜涨跌幅可能蕴含与日度收益率不同的信息特征，业界认为A股中隔夜收益率包含日度收益率中的“动量”成份。
+- liq_turn_std_1M
+   - 名称：1个月换手率标准差
+   - 计算方式：1个月换手率的标准差
+   - 逻辑：表示中低频流动性，流动性越差的因子往往收益率更高。
+
+## Factor processing
+The factor processing includes winsorization, standardization, and neutralization with respect to industry and market value. However, due to the slow speed of regression calculations, the consideration of industry was abandoned in favor of solely conducting market value neutralization.
+
+see [process.py](process.py)
+
+## Factor correlation
+|               | mmt_intraday_M | mmt_normal_M | mmt_overnight_M | liq_turn_std_1M |
+|---------------|----------------|--------------|-----------------|-----------------|
+| mmt_intraday_M| 1.000000       | 0.823706     | -0.322431       | 0.369388        |
+| mmt_normal_M  | 0.823706       | 1.000000     | 0.214564        | 0.232878        |
+| mmt_overnight_M| -0.322431      | 0.214564     | 1.000000        | -0.213000       |
+| liq_turn_std_1M| 0.369388       | 0.232878     | -0.213000       | 1.000000        |
+
+## Sharpe Ratio & cummulated return
+|  | Sharpe   | Cumulative_Return |
+|------|----------|-------------------|
+| mmt_intraday_M    | 1.3513   | 1.576368          |
+| mmt_normal_M    | 1.6561   | 1.821583          |
+| mmt_overnight_M    | 0.7461   | 1.527560          |
+| liq_turn_std_1M    | 	-0.6311   | 0.339818          |
+
+<img src="output.png" alt="results" width="1600">
+
 ## Reference
 [Alphalens](https://github.com/quantopian/alphalens.git) [指南](https://zhuanlan.zhihu.com/p/256324663)
 
