@@ -1,4 +1,4 @@
-# Factor Mining for A Share （I）
+# Factor Mining for A Share
 
 MFE5210 Algorithm Trading 24/25
 
